@@ -268,27 +268,6 @@
             display: none;
         }
 
-        /* Thread List - scrollable area */
-        .thread-list {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 0 16px 80px 16px; /* Bottom padding for FAB */
-        }
-
-        .thread-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .thread-list::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .thread-list::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 3px;
-        }
-
         .thread-item {
             padding: 10px 12px;
             margin-bottom: 2px;
@@ -319,6 +298,11 @@
             white-space: nowrap;
             padding: 2px 4px;
             border-radius: 4px;
+        }
+
+        .thread-name.generating {
+            color: var(--text-secondary);
+            font-style: italic;
         }
 
         .thread-name-input {
@@ -827,37 +811,23 @@
             font-size: 0.875rem;
         }
 
-        /* Filter options */
-        .filter-container {
-            display: flex;
-            gap: 8px;
-            padding: 12px 24px;
-            flex-shrink: 0;
-            background: var(--sidebar-bg);
-        }
-
-        .filter-chip {
-            padding: 6px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            background: var(--main-bg);
+        .empty-state {
+            padding: 24px;
+            text-align: center;
             color: var(--text-secondary);
-            font-size: 0.8125rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
+            font-size: 0.875rem;
         }
 
-        .filter-chip.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
+        .welcome-message {
+            text-align: center;
+            padding: 60px 40px;
+            color: var(--text-secondary);
         }
 
-        .filter-chip:hover:not(.active) {
-            background: var(--sidebar-hover);
+        .welcome-message h2 {
             color: var(--text-primary);
+            margin-bottom: 16px;
+            font-size: 1.5rem;
         }
     </style>
 </head>
@@ -931,10 +901,16 @@
                     <label for="assistantIdInput" class="form-label">Assistant ID</label>
                     <input type="text" class="form-control" id="assistantIdInput" placeholder="asst_...">
                 </div>
-                <div class="form-check">
+                <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" value="" id="renderMarkdownCheckbox">
                     <label class="form-check-label" for="renderMarkdownCheckbox">
                         Render assistant messages as Markdown
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="" id="autoNamingCheckbox">
+                    <label class="form-check-label" for="autoNamingCheckbox">
+                        Auto-generate thread names (uses GPT-4o-mini)
                     </label>
                 </div>
             </div>
@@ -1128,6 +1104,7 @@
   let apiKey = localStorage.getItem('apiKey') || '';
   let assistantId = localStorage.getItem('assistantId') || '';
   let renderMarkdown = localStorage.getItem('renderMarkdown') !== 'false'; // Default to true
+  let autoNaming = localStorage.getItem('autoNaming') !== 'false'; // Default to true
   let currentTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
 
   // Initialize theme
@@ -1160,6 +1137,20 @@
   // Track last read message timestamp for each thread
   let lastReadTimestamps = JSON.parse(localStorage.getItem('lastReadTimestamps')) || {};
 
+  // Clean up any stuck "generating name" states on page load
+  function cleanupGeneratingStates() {
+    let hasChanges = false;
+    for (const threadId in threads) {
+      if (threads[threadId].generatingName) {
+        threads[threadId].generatingName = false;
+        hasChanges = true;
+      }
+    }
+    if (hasChanges) {
+      persistThreads();
+    }
+  }
+
   function updateLastReadTimestamp(threadId) {
     if (!threadId || !threads[threadId]) return;
     const chatHistory = threads[threadId].chatHistory || [];
@@ -1178,6 +1169,52 @@
       const msgTime = new Date(msg.timestamp).getTime();
       return msgTime > lastRead && msg.sender === 'assistant';
     }).length;
+  }
+
+  // Auto-naming function using GPT-4o-mini
+  async function generateThreadName(firstMessage, threadId) {
+    if (!autoNaming || !apiKey || !threadId || !threads[threadId]) return null;
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Generate a concise, descriptive title (max 4-5 words) for a conversation that starts with the given message. The title should capture the main topic or intent. Return only the title, no quotes or extra text.'
+            },
+            {
+              role: 'user',
+              content: firstMessage
+            }
+          ],
+          max_tokens: 20,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const generatedName = data.choices?.[0]?.message?.content?.trim();
+      
+      // Validate the generated name and check if thread still exists
+      if (generatedName && generatedName.length > 0 && generatedName.length <= 50 && threads[threadId]) {
+        return generatedName;
+      }
+    } catch (error) {
+      console.error('Failed to generate thread name:', error);
+    }
+    
+    return null;
   }
 
   async function syncThreadWithOpenAI(threadId) {
@@ -1400,9 +1437,14 @@
 
       const unreadCount = getUnreadCount(id);
       const unreadBadge = unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : '';
+      
+      // Check if thread name is being generated
+      const isGenerating = t.displayName.startsWith('Thread ') && t.generatingName;
+      const nameClass = isGenerating ? 'thread-name generating' : 'thread-name';
+      const displayName = isGenerating ? 'Generating name...' : t.displayName;
 
       threadItem.innerHTML = `
-        <span class="thread-name" data-thread-id="${id}">${t.displayName}</span>
+        <span class="${nameClass}" data-thread-id="${id}">${displayName}</span>
         ${unreadBadge}
         <div class="thread-actions">
           <button class="thread-btn edit-btn" title="Rename">${icons.edit}</button>
@@ -1421,16 +1463,20 @@
         renderChat();
       };
 
-      // Double-click to edit inline
-      threadNameEl.ondblclick = (e) => {
-        e.stopPropagation();
-        startInlineEdit(threadNameEl, id);
-      };
+      // Double-click to edit inline (but not if generating)
+      if (!isGenerating) {
+        threadNameEl.ondblclick = (e) => {
+          e.stopPropagation();
+          startInlineEdit(threadNameEl, id);
+        };
+      }
 
       threadItem.querySelector('.edit-btn').onclick = (e) => {
         e.stopPropagation();
-        const nameEl = threadItem.querySelector('.thread-name');
-        startInlineEdit(nameEl, id);
+        if (!isGenerating) {
+          const nameEl = threadItem.querySelector('.thread-name');
+          startInlineEdit(nameEl, id);
+        }
       };
 
       threadItem.querySelector('.delete-btn').onclick = (e) => {
@@ -1455,7 +1501,7 @@
 
   function startInlineEdit(nameEl, threadId) {
     const t = threads[threadId];
-    if (!t) return;
+    if (!t || t.generatingName) return;
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -1470,6 +1516,7 @@
       const newName = input.value.trim();
       if (newName && newName !== t.displayName) {
         t.displayName = newName;
+        t.generatingName = false; // Stop any name generation
         threads[threadId] = t;
         persistThreads();
       }
@@ -1522,7 +1569,17 @@
     const threadId = await createOpenAIThread();
     const id = uuidv4();
     const displayName = getNextDefaultThreadName();
-    threads[id] = { id, displayName, threadId, chatHistory: [], lastAssistantMessageId: null, lastRunId: null, lastRunStatus: null, inputEnabled: true };
+    threads[id] = { 
+      id, 
+      displayName, 
+      threadId, 
+      chatHistory: [], 
+      lastAssistantMessageId: null, 
+      lastRunId: null, 
+      lastRunStatus: null, 
+      inputEnabled: true,
+      generatingName: false 
+    };
     threadOrder.push(id);
     currentThreadId = id;
     persistThreads();
@@ -1600,11 +1657,50 @@
         await addNewThread();
       }
 
+      const threadObj = threads[currentThreadId];
+      const isFirstMessage = !threadObj.chatHistory || threadObj.chatHistory.length === 0;
+
       setInputEnabled(false);
       const clientMsgId = uuidv4();
       addMessageToChat(message, 'user', null, false, null, clientMsgId, true);
       scrollChatToBottom(); // Scroll immediately after adding user message
       input.value = '';
+      
+      // Start auto-naming process for first message if enabled
+      if (isFirstMessage && autoNaming && threadObj.displayName.startsWith('Thread ')) {
+        threadObj.generatingName = true;
+        threads[currentThreadId] = threadObj;
+        persistThreads();
+        renderThreadList(); // Update UI to show "Generating name..."
+        
+        // Generate name in background
+        generateThreadName(message, currentThreadId).then(generatedName => {
+          // Double-check that the thread still exists and is still in generating state
+          if (generatedName && threads[currentThreadId] && threads[currentThreadId].generatingName) {
+            threads[currentThreadId].displayName = generatedName;
+            threads[currentThreadId].generatingName = false;
+            persistThreads();
+            renderThreadList();
+            if (currentThreadId === threadObj.id) {
+              renderChat(); // Update header
+            }
+          } else if (threads[currentThreadId] && threads[currentThreadId].generatingName) {
+            // Fallback if generation failed but thread still exists
+            threads[currentThreadId].generatingName = false;
+            persistThreads();
+            renderThreadList();
+          }
+        }).catch(error => {
+          console.error('Error during name generation:', error);
+          // Clean up generating state on error
+          if (threads[currentThreadId] && threads[currentThreadId].generatingName) {
+            threads[currentThreadId].generatingName = false;
+            persistThreads();
+            renderThreadList();
+          }
+        });
+      }
+      
       const thisThreadId = currentThreadId;
       await sendMessageWithClientMsgId(message, thisThreadId, clientMsgId);
     }
@@ -1684,6 +1780,7 @@
     document.getElementById('apiKeyInput').value = apiKey;
     document.getElementById('assistantIdInput').value = assistantId;
     document.getElementById('renderMarkdownCheckbox').checked = renderMarkdown;
+    document.getElementById('autoNamingCheckbox').checked = autoNaming;
     const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
     settingsModal.show();
   });
@@ -1692,9 +1789,11 @@
     apiKey = document.getElementById('apiKeyInput').value.trim();
     assistantId = document.getElementById('assistantIdInput').value.trim();
     renderMarkdown = document.getElementById('renderMarkdownCheckbox').checked;
+    autoNaming = document.getElementById('autoNamingCheckbox').checked;
     localStorage.setItem('apiKey', apiKey);
     localStorage.setItem('assistantId', assistantId);
     localStorage.setItem('renderMarkdown', renderMarkdown ? 'true' : 'false');
+    localStorage.setItem('autoNaming', autoNaming ? 'true' : 'false');
     const settingsModal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
     settingsModal.hide();
   });
@@ -1715,6 +1814,8 @@
     }
   }, 5000); // Check every 5 seconds for better responsiveness
 
+  // Initialize app
+  cleanupGeneratingStates(); // Clean up any stuck states from previous session
   renderThreadList();
   renderChat();
 
