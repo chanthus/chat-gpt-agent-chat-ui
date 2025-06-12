@@ -666,6 +666,29 @@
             cursor: not-allowed;
         }
 
+        /* Spinner animation */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .send-button-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* Modal Styling */
         .modal-content {
             border: none;
@@ -892,7 +915,7 @@
         <div id="chat"></div>
         <div id="input-container">
             <input type="text" id="input" placeholder="Message Assistant..." />
-            <button id="send">Send</button>
+            <button id="send"><span class="send-button-content">Send</span></button>
         </div>
     </div>
 </div>
@@ -1383,15 +1406,36 @@
   function restoreInputEnabled() {
     let threadObj = threads[currentThreadId];
     if (!threadObj) return;
-    document.getElementById('send').disabled = !(threadObj.inputEnabled ?? true);
-    document.getElementById('input').disabled = !(threadObj.inputEnabled ?? true);
+    
+    const enabled = threadObj.inputEnabled ?? true;
+    const sendButton = document.getElementById('send');
+    const sendButtonContent = sendButton.querySelector('.send-button-content');
+    
+    sendButton.disabled = !enabled;
+    document.getElementById('input').disabled = !enabled;
+    
+    if (!enabled) {
+      sendButtonContent.innerHTML = '<div class="spinner"></div>Sending...';
+    } else {
+      sendButtonContent.innerHTML = 'Send';
+    }
   }
 
   function setInputEnabled(enabled) {
     if (currentThreadId && threads[currentThreadId]) {
       threads[currentThreadId].inputEnabled = enabled;
-      document.getElementById('send').disabled = !enabled;
+      const sendButton = document.getElementById('send');
+      const sendButtonContent = sendButton.querySelector('.send-button-content');
+      
+      sendButton.disabled = !enabled;
       document.getElementById('input').disabled = !enabled;
+      
+      if (!enabled) {
+        sendButtonContent.innerHTML = '<div class="spinner"></div>Sending...';
+      } else {
+        sendButtonContent.innerHTML = 'Send';
+      }
+      
       persistThreads();
     }
   }
