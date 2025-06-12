@@ -481,6 +481,10 @@
             animation: messageSlide 0.3s ease-out;
         }
 
+        .message.highlighted-message {
+            animation: messageHighlight 3s ease-out;
+        }
+
         @keyframes messageSlide {
             from {
                 opacity: 0;
@@ -489,6 +493,20 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        @keyframes messageHighlight {
+            0% {
+                background-color: rgba(255, 235, 59, 0.3);
+                transform: scale(1.02);
+            }
+            20% {
+                background-color: rgba(255, 235, 59, 0.2);
+            }
+            100% {
+                background-color: transparent;
+                transform: scale(1);
             }
         }
 
@@ -984,12 +1002,14 @@
           text: thread.displayName,
           sender: 'thread',
           timestamp: null,
-          isThreadName: true
+          isThreadName: true,
+          messageIndex: -1
         });
       }
 
       // Search in messages
-      for (const msg of (thread.chatHistory || [])) {
+      for (let i = 0; i < (thread.chatHistory || []).length; i++) {
+        const msg = thread.chatHistory[i];
         const cleanText = msg.text.replace(/【\d+:\d+†[^】]+】/g, '');
         if (cleanText.toLowerCase().includes(lowerQuery)) {
           threadResults.push({
@@ -997,7 +1017,8 @@
             threadName: thread.displayName,
             text: cleanText,
             sender: msg.sender,
-            timestamp: msg.timestamp
+            timestamp: msg.timestamp,
+            messageIndex: i
           });
         }
       }
@@ -1044,7 +1065,7 @@
         }) : '';
 
       return `
-        <div class="search-result-item" data-thread-id="${result.threadId}" data-index="${index}">
+        <div class="search-result-item" data-thread-id="${result.threadId}" data-index="${index}" data-message-index="${result.messageIndex || -1}">
           <div class="search-result-thread">${result.threadName}</div>
           <div class="search-result-text">${highlightedText}</div>
           ${timeStr ? `<div class="search-result-meta">${result.sender} • ${timeStr}</div>` : ''}
@@ -1064,6 +1085,8 @@
 
   function selectSearchResult(item) {
     const threadId = item.getAttribute('data-thread-id');
+    const messageIndex = parseInt(item.getAttribute('data-message-index'));
+    
     currentThreadId = threadId;
     localStorage.setItem('currentThreadId', currentThreadId);
     searchQuery = '';
@@ -1072,7 +1095,38 @@
     selectedSearchIndex = -1;
     renderThreadList();
     renderChat();
-    focusInputBox();
+    
+    // Scroll to specific message if it's a message search result
+    if (messageIndex >= 0) {
+      setTimeout(() => {
+        scrollToMessage(messageIndex);
+      }, 100);
+    } else {
+      focusInputBox();
+    }
+  }
+
+  function scrollToMessage(messageIndex) {
+    const chat = document.getElementById('chat');
+    const messages = chat.querySelectorAll('.message');
+    
+    if (messageIndex >= 0 && messageIndex < messages.length) {
+      const targetMessage = messages[messageIndex];
+      
+      // Add highlight effect
+      targetMessage.classList.add('highlighted-message');
+      
+      // Scroll to message
+      targetMessage.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // Remove highlight after a few seconds
+      setTimeout(() => {
+        targetMessage.classList.remove('highlighted-message');
+      }, 3000);
+    }
   }
 
   function updateSearchSelection() {
