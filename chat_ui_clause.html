@@ -1461,6 +1461,7 @@
         localStorage.setItem('currentThreadId', currentThreadId);
         renderThreadList();
         renderChat();
+        focusInputBox();
       };
 
       // Double-click to edit inline (but not if generating)
@@ -1585,12 +1586,22 @@
     persistThreads();
     renderThreadList();
     renderChat();
+    focusInputBox();
   }
 
   function persistThreads() {
     localStorage.setItem('threadsV2', JSON.stringify(threads));
     localStorage.setItem('threadOrder', JSON.stringify(threadOrder));
     localStorage.setItem('currentThreadId', currentThreadId);
+  }
+
+  function focusInputBox(delay = 100) {
+    setTimeout(() => {
+      const inputElement = document.getElementById('input');
+      if (inputElement && !inputElement.disabled) {
+        inputElement.focus();
+      }
+    }, delay);
   }
 
   function addMessageToChat(text, sender, time = null, skipSave = false, msgId = null, clientMsgId = null, isNewMessage = false) {
@@ -1818,6 +1829,11 @@
   cleanupGeneratingStates(); // Clean up any stuck states from previous session
   renderThreadList();
   renderChat();
+
+  // Focus input box if there's a current thread and API is configured
+  if (currentThreadId && threads[currentThreadId] && apiKey && assistantId) {
+    focusInputBox(200);
+  }
 
   // Don't auto-create a thread on load - wait for user to send a message
   if (!apiKey || !assistantId) {
