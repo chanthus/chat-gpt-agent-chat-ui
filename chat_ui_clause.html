@@ -11,6 +11,8 @@
     <style>
         :root {
             --sidebar-width: 280px;
+            --sidebar-min-width: 200px;
+            --sidebar-max-width: 500px;
         }
 
         /* Light mode colors */
@@ -71,11 +73,38 @@
         /* Sidebar */
         .sidebar {
             width: var(--sidebar-width);
+            min-width: var(--sidebar-min-width);
+            max-width: var(--sidebar-max-width);
             background: var(--sidebar-bg);
             display: flex;
             flex-direction: column;
             border-right: 1px solid var(--border-color);
             position: relative;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+            min-width: 60px;
+        }
+
+        .sidebar-resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+
+        .sidebar-resize-handle:hover {
+            background: var(--primary-color);
+        }
+
+        .sidebar-resize-handle.dragging {
+            background: var(--primary-color);
         }
 
         .sidebar-header {
@@ -93,6 +122,69 @@
             font-weight: 600;
             margin: 0;
             color: var(--text-primary);
+        }
+
+        .sidebar-toggle {
+            background: var(--main-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            right: -12px;
+            top: 20px;
+            width: 24px;
+            height: 24px;
+            z-index: 20;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .sidebar-toggle svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .sidebar.collapsed .sidebar-title h1,
+        .sidebar.collapsed .search-container,
+        .sidebar.collapsed .filter-container,
+        .sidebar.collapsed .thread-name,
+        .sidebar.collapsed .thread-actions,
+        .sidebar.collapsed .unread-badge {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            padding: 16px 8px;
+        }
+
+        .sidebar.collapsed .sidebar-toggle {
+            right: -12px;
+        }
+
+        .sidebar.collapsed .thread-list {
+            padding: 0 8px 80px 8px;
+        }
+
+        .sidebar.collapsed .thread-item {
+            justify-content: center;
+            padding: 10px 8px;
+        }
+
+        .sidebar.collapsed .new-thread-btn {
+            left: 12px;
+            width: 36px;
+            height: 36px;
         }
 
         .search-container {
@@ -888,6 +980,15 @@
 <body data-theme="dark">
 <div class="app-container">
     <div class="sidebar">
+        <div class="sidebar-resize-handle"></div>
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+            <svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+            </svg>
+            <svg class="expand-icon" style="display: none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+            </svg>
+        </button>
         <div class="sidebar-header">
             <div class="sidebar-title">
                 <h1>Ailo Support Assistant</h1>
@@ -1275,6 +1376,8 @@
   let renderMarkdown = localStorage.getItem('renderMarkdown') !== 'false'; // Default to true
   let autoNaming = localStorage.getItem('autoNaming') !== 'false'; // Default to true
   let currentTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+  let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+  let sidebarWidth = parseInt(localStorage.getItem('sidebarWidth')) || 280;
 
   // Initialize theme
   document.body.setAttribute('data-theme', currentTheme);
@@ -1298,6 +1401,92 @@
     localStorage.setItem('theme', currentTheme);
     updateThemeIcon();
   });
+
+  // Sidebar functionality
+  function initializeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const root = document.documentElement;
+    
+    // Set initial width
+    root.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+    
+    // Set initial collapsed state
+    if (sidebarCollapsed) {
+      sidebar.classList.add('collapsed');
+      updateToggleIcon(true);
+    }
+  }
+
+  function updateToggleIcon(collapsed) {
+    const collapseIcon = document.querySelector('.collapse-icon');
+    const expandIcon = document.querySelector('.expand-icon');
+    
+    if (collapsed) {
+      collapseIcon.style.display = 'none';
+      expandIcon.style.display = 'block';
+    } else {
+      collapseIcon.style.display = 'block';
+      expandIcon.style.display = 'none';
+    }
+  }
+
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    const sidebar = document.querySelector('.sidebar');
+    sidebarCollapsed = !sidebarCollapsed;
+    
+    if (sidebarCollapsed) {
+      sidebar.classList.add('collapsed');
+    } else {
+      sidebar.classList.remove('collapsed');
+    }
+    
+    updateToggleIcon(sidebarCollapsed);
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
+  });
+
+  // Sidebar resize functionality
+  function initializeSidebarResize() {
+    const resizeHandle = document.querySelector('.sidebar-resize-handle');
+    const sidebar = document.querySelector('.sidebar');
+    const root = document.documentElement;
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      if (sidebarCollapsed) return;
+      
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = sidebarWidth;
+      resizeHandle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(200, Math.min(500, startWidth + deltaX));
+      
+      sidebarWidth = newWidth;
+      root.style.setProperty('--sidebar-width', `${newWidth}px`);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isResizing) return;
+      
+      isResizing = false;
+      resizeHandle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      
+      localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+    });
+  }
 
   let threads = JSON.parse(localStorage.getItem('threadsV2')) || {};
   let threadOrder = JSON.parse(localStorage.getItem('threadOrder')) || [];
@@ -2016,6 +2205,8 @@
 
   // Initialize app
   cleanupGeneratingStates(); // Clean up any stuck states from previous session
+  initializeSidebar();
+  initializeSidebarResize();
   renderThreadList();
   renderChat();
 
