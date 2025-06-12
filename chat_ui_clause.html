@@ -1214,13 +1214,20 @@
       return;
     }
     
-    // Focus message input shortcut (Shift+?)
-    if (e.shiftKey && e.key === '?') {
+    // Focus message input shortcut (Cmd+/ or Ctrl+/)
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
       e.preventDefault();
       const messageInput = document.getElementById('input');
       if (messageInput && !messageInput.disabled) {
         messageInput.focus();
       }
+      return;
+    }
+    
+    // New thread shortcut (Cmd+L or Ctrl+L)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+      e.preventDefault();
+      addNewThread();
       return;
     }
   });
