@@ -886,7 +886,6 @@
             <div class="filter-container">
                 <div class="filter-chip active" data-filter="all">All</div>
                 <div class="filter-chip" data-filter="unread">Unread</div>
-                <div class="filter-chip" data-filter="recent">Recent</div>
             </div>
             <div class="thread-list" id="threadList"></div>
         </div>
@@ -1183,9 +1182,6 @@
   });
 
   function filterThreads() {
-    const now = Date.now();
-    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
-
     return threadOrder.filter(id => {
       const thread = threads[id];
       if (!thread) return false;
@@ -1193,9 +1189,6 @@
       switch (currentFilter) {
         case 'unread':
           return getUnreadCount(id) > 0;
-        case 'recent':
-          const lastMessage = thread.chatHistory[thread.chatHistory.length - 1];
-          return lastMessage && new Date(lastMessage.timestamp).getTime() > oneWeekAgo;
         default:
           return true;
       }
@@ -1558,7 +1551,6 @@
     if (filteredThreads.length === 0) {
       let emptyMessage = 'No conversations yet';
       if (currentFilter === 'unread') emptyMessage = 'No unread conversations';
-      else if (currentFilter === 'recent') emptyMessage = 'No recent conversations';
 
       container.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
       return;
