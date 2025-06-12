@@ -1127,13 +1127,25 @@
     }
   });
 
-  // Keyboard shortcut for search (Ctrl+K or Cmd+K)
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    // Search shortcut (Ctrl+K or Cmd+K)
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
       const searchInput = document.getElementById('searchInput');
       searchInput.focus();
       searchInput.select();
+      return;
+    }
+    
+    // Focus message input shortcut (Shift+?)
+    if (e.shiftKey && e.key === '?') {
+      e.preventDefault();
+      const messageInput = document.getElementById('input');
+      if (messageInput && !messageInput.disabled) {
+        messageInput.focus();
+      }
+      return;
     }
   });
 
