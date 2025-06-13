@@ -853,40 +853,40 @@
             text-align: right;
         }
 
-        /* Typing Indicator */
+        /* Typing Indicator - Bubble Style */
         .typing-indicator-container {
             display: flex;
             justify-content: flex-start;
-            margin: 20px 0;
-            opacity: 0.7;
+            margin: 16px 0;
+            max-width: 70%;
         }
 
         .typing-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: rgba(var(--text-secondary-rgb, 128, 128, 128), 0.1);
-            border: 1px solid rgba(var(--text-secondary-rgb, 128, 128, 128), 0.2);
-            border-radius: 20px;
-            font-size: 0.8125rem;
-            color: var(--text-secondary);
-            font-style: italic;
+            justify-content: center;
+            padding: 16px 20px;
+            background: var(--assistant-msg-bg);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             width: fit-content;
+            min-width: 60px;
         }
 
         .typing-dots {
             display: flex;
-            gap: 3px;
+            gap: 4px;
             align-items: center;
         }
 
         .typing-dot {
-            width: 4px;
-            height: 4px;
+            width: 8px;
+            height: 8px;
             background: var(--text-secondary);
             border-radius: 50%;
-            animation: typingPulse 1.4s infinite ease-in-out;
+            animation: typingBounce 1.4s infinite ease-in-out;
+            opacity: 0.4;
         }
 
         .typing-dot:nth-child(1) {
@@ -901,14 +901,14 @@
             animation-delay: 0.4s;
         }
 
-        @keyframes typingPulse {
+        @keyframes typingBounce {
             0%, 60%, 100% {
-                opacity: 0.3;
-                transform: scale(0.8);
+                opacity: 0.4;
+                transform: translateY(0);
             }
             30% {
                 opacity: 1;
-                transform: scale(1);
+                transform: translateY(-8px);
             }
         }
 
@@ -3113,9 +3113,6 @@
     const typingIndicator = document.createElement('div');
     typingIndicator.className = 'typing-indicator';
     
-    const typingText = document.createElement('span');
-    typingText.textContent = 'Assistant is typing';
-    
     const typingDots = document.createElement('div');
     typingDots.className = 'typing-dots';
     
@@ -3126,7 +3123,6 @@
       typingDots.appendChild(dot);
     }
     
-    typingIndicator.appendChild(typingText);
     typingIndicator.appendChild(typingDots);
     typingContainer.appendChild(typingIndicator);
     chat.appendChild(typingContainer);
