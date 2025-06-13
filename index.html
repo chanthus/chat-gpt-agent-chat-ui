@@ -1686,6 +1686,7 @@
   let currentCompletion = '';
   let isAutoCompleteActive = false;
   let selectedSuggestionIndex = -1;
+  let lastRequestedQuery = '';
 
   // Initialize theme
   document.body.setAttribute('data-theme', currentTheme);
@@ -1802,6 +1803,32 @@
 
   // Track last read message timestamp for each thread
   let lastReadTimestamps = JSON.parse(localStorage.getItem('lastReadTimestamps')) || {};
+  
+  // Track draft messages for each thread
+  let threadDrafts = JSON.parse(localStorage.getItem('threadDrafts')) || {};
+
+  // Draft message management
+  function saveDraftMessage(threadId, message) {
+    if (!threadId) return;
+    
+    if (message.trim()) {
+      threadDrafts[threadId] = message;
+    } else {
+      delete threadDrafts[threadId];
+    }
+    localStorage.setItem('threadDrafts', JSON.stringify(threadDrafts));
+  }
+
+  function loadDraftMessage(threadId) {
+    if (!threadId) return '';
+    return threadDrafts[threadId] || '';
+  }
+
+  function clearDraftMessage(threadId) {
+    if (!threadId) return;
+    delete threadDrafts[threadId];
+    localStorage.setItem('threadDrafts', JSON.stringify(threadDrafts));
+  }
 
   // Clean up any stuck "generating name" states on page load
   function cleanupGeneratingStates() {
@@ -2023,6 +2050,13 @@
 
     scrollChatToBottom();
 
+    // Load draft message for this thread
+    const input = document.getElementById('input');
+    if (input) {
+      const draftMessage = loadDraftMessage(currentThreadId);
+      input.value = draftMessage;
+    }
+
     let pendingRun = threadObj.lastRunId && threadObj.lastRunStatus === 'in_progress';
     if (pendingRun) {
       threads[currentThreadId].inputEnabled = false;
@@ -2171,6 +2205,7 @@
         if (confirm(`Delete "${t.displayName}"? This action cannot be undone.`)) {
           delete threads[id];
           delete lastReadTimestamps[id];
+          clearDraftMessage(id); // Clear draft message for deleted thread
           threadOrder = threadOrder.filter(x => x !== id);
           if (currentThreadId === id) {
             currentThreadId = threadOrder[0] || null;
@@ -2362,6 +2397,9 @@
       addMessageToChat(message, 'user', null, false, null, clientMsgId, true);
       scrollChatToBottom(); // Scroll immediately after adding user message
       input.value = '';
+      
+      // Clear draft message for this thread since message was sent
+      clearDraftMessage(currentThreadId);
       
       // Start auto-naming process for first message if enabled
       if (isFirstMessage && autoNaming && threadObj.displayName.startsWith('Thread ')) {
@@ -2562,6 +2600,13 @@
   function showAutoCompleteSuggestions(suggestions, query) {
     console.log('Showing auto-complete suggestions:', suggestions, 'for query:', query);
     
+    // Check if the current input still matches the query we requested suggestions for
+    const currentInput = document.getElementById('input').value.trim();
+    if (currentInput !== query) {
+      console.log('Input has changed since request, ignoring stale suggestions');
+      return;
+    }
+    
     if (suggestions.length === 0) {
       console.log('No suggestions to show, hiding');
       hideAutoComplete();
@@ -2726,7 +2771,13 @@
 
   // Input event handlers
   document.getElementById('input').addEventListener('input', async (e) => {
-    const value = e.target.value.trim();
+    const value = e.target.value;
+    const trimmedValue = value.trim();
+    
+    // Save draft message for current thread
+    if (currentThreadId) {
+      saveDraftMessage(currentThreadId, value);
+    }
     
     // Clear existing timeout
     clearTimeout(autoCompleteTimeout);
@@ -2740,16 +2791,19 @@
     }
     
     // Hide suggestions if input is too short
-    if (value.length < 5) {
+    if (trimmedValue.length < 5) {
       return;
     }
 
     // Debounce API calls
     autoCompleteTimeout = setTimeout(async () => {
+      // Store the query we're requesting suggestions for
+      lastRequestedQuery = trimmedValue;
+      
       try {
-        const suggestions = await getAutoCompletion(value);
+        const suggestions = await getAutoCompletion(trimmedValue);
         console.log('Auto-completion suggestions received:', suggestions);
-        showAutoCompleteSuggestions(suggestions, value);
+        showAutoCompleteSuggestions(suggestions, trimmedValue);
       } catch (error) {
         console.error('Auto-completion failed:', error);
         hideAutoComplete();
