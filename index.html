@@ -1983,9 +1983,7 @@
           hour12: true 
         }) : '';
       
-      if (fullTimeStr) {
-        console.log('Setting search result tooltip:', fullTimeStr);
-      }
+
 
       return `
         <div class="search-result-item" data-thread-id="${result.threadId}" data-index="${index}" data-message-index="${result.messageIndex || -1}">
@@ -2225,16 +2223,14 @@
   async function requestNotificationPermission() {
     // Don't request notifications for local file URLs
     if (window.location.protocol === 'file:') {
-      console.log('Notifications not supported for local file URLs');
       return;
     }
     
     if ('Notification' in window && Notification.permission === 'default') {
       try {
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
+        await Notification.requestPermission();
       } catch (error) {
-        console.log('Notification permission request failed:', error);
+        // Permission request failed
       }
     }
   }
@@ -3062,7 +3058,6 @@
     });
     timestamp.setAttribute('data-tooltip', fullDateTime);
     timestamp.title = fullDateTime; // Keep as fallback
-    console.log('Setting timestamp tooltip:', fullDateTime);
     messageDiv.appendChild(timestamp);
 
     chat.appendChild(messageDiv);
@@ -3268,20 +3263,14 @@
         .map(s => s.replace(/^\d+\.\s*/, '')) // Remove numbered lists (1., 2., etc.)
         .filter(s => s.length > 0);
       
-      console.log('Raw AI suggestions:', rawSuggestions);
-      console.log('Partial text:', partialText);
-      
       const suggestions = rawSuggestions
         .filter(s => {
           // Only include suggestions that start with the user's partial text
           const startsWithPartial = s.toLowerCase().startsWith(partialText.toLowerCase());
           const isLonger = s.length > partialText.length;
-          console.log(`Suggestion "${s}": starts with "${partialText}"? ${startsWithPartial}, longer? ${isLonger}`);
           return startsWithPartial && isLonger;
         })
         .slice(0, 5);
-
-      console.log('Filtered suggestions:', suggestions);
       return suggestions;
     } catch (error) {
       console.error('Auto-completion error:', error);
@@ -3312,17 +3301,13 @@
   }
 
   function showAutoCompleteSuggestions(suggestions, query) {
-    console.log('Showing auto-complete suggestions:', suggestions, 'for query:', query);
-    
     // Check if the current input still matches the query we requested suggestions for
     const currentInput = document.getElementById('input').value.trim();
     if (currentInput !== query) {
-      console.log('Input has changed since request, ignoring stale suggestions');
       return;
     }
     
     if (suggestions.length === 0) {
-      console.log('No suggestions to show, hiding');
       hideAutoComplete();
       return;
     }
@@ -3336,9 +3321,6 @@
 
   function showInlineCompletion(bestSuggestion, query) {
     const completion = bestSuggestion.substring(query.length);
-    
-    console.log('Best suggestion:', bestSuggestion);
-    console.log('Completion part:', completion);
     
     currentCompletion = bestSuggestion;
     isAutoCompleteActive = true;
@@ -3356,10 +3338,6 @@
       ghostElement.style.left = `${16 + textWidth}px`;
       ghostElement.innerHTML = `<span class="ghost-text">${completion}</span>`;
       inputWrapper.classList.add('has-completion');
-      
-      console.log('Ghost text positioned at:', 16 + textWidth, 'px', 'text width:', textWidth);
-    } else {
-      console.error('Ghost element, input wrapper, or input not found');
     }
   }
 
@@ -3516,7 +3494,6 @@
       
       try {
         const suggestions = await getAutoCompletion(trimmedValue);
-        console.log('Auto-completion suggestions received:', suggestions);
         showAutoCompleteSuggestions(suggestions, trimmedValue);
       } catch (error) {
         console.error('Auto-completion failed:', error);
@@ -3746,14 +3723,7 @@
     const inputWrapper = document.querySelector('.input-wrapper');
     const input = document.getElementById('input');
     
-    console.log('=== Inline Completion Debug ===');
-    console.log('Ghost element exists:', !!ghostElement);
-    console.log('Input wrapper exists:', !!inputWrapper);
-    console.log('Input element exists:', !!input);
-    
-    if (ghostElement) {
-      console.log('Ghost element styles:', window.getComputedStyle(ghostElement));
-    }
+
   }, 1000);
 
   // Focus input box if there's a current thread and API is configured
