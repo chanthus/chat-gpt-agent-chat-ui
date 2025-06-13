@@ -2039,10 +2039,36 @@
 
     const threadObj = threads[currentThreadId];
 
-    // Don't show unread divider on initial render - we're already viewing the thread
-    (threadObj.chatHistory || []).forEach(entry => {
-      addMessageToChat(entry.text, entry.sender, entry.timestamp, true);
+    // Check if there are unread messages before rendering
+    const lastRead = lastReadTimestamps[currentThreadId] || 0;
+    const hasUnreadMessages = (threadObj.chatHistory || []).some(entry => {
+      const msgTime = new Date(entry.timestamp).getTime();
+      return msgTime > lastRead && entry.sender === 'assistant';
     });
+
+    // Show messages with unread divider if there are unread messages
+    if (hasUnreadMessages) {
+      let hasShownUnreadDivider = false;
+      (threadObj.chatHistory || []).forEach(entry => {
+        const msgTime = new Date(entry.timestamp).getTime();
+        
+        // Show divider before the first unread assistant message
+        if (!hasShownUnreadDivider && msgTime > lastRead && entry.sender === 'assistant') {
+          const divider = document.createElement('div');
+          divider.className = 'unread-divider';
+          divider.textContent = 'New messages';
+          document.getElementById('chat').appendChild(divider);
+          hasShownUnreadDivider = true;
+        }
+        
+        addMessageToChat(entry.text, entry.sender, entry.timestamp, true);
+      });
+    } else {
+      // No unread messages, just show all messages normally
+      (threadObj.chatHistory || []).forEach(entry => {
+        addMessageToChat(entry.text, entry.sender, entry.timestamp, true);
+      });
+    }
 
     // Update last read timestamp for current thread
     updateLastReadTimestamp(currentThreadId);
