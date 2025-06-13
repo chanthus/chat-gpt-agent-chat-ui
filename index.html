@@ -3603,27 +3603,31 @@
     });
   });
 
-  // Periodically check for new messages in background threads
+  // Periodically check for new messages in all threads
   setInterval(async () => {
     for (const threadId of threadOrder) {
-      if (threadId !== currentThreadId) {
-        const beforeCount = (threads[threadId]?.chatHistory || []).length;
-        await syncThreadWithOpenAI(threadId);
-        const afterCount = (threads[threadId]?.chatHistory || []).length;
+      const beforeCount = (threads[threadId]?.chatHistory || []).length;
+      
+      // Check current thread only if tab is not active (to avoid duplicate processing)
+      if (threadId === currentThreadId && isTabActive) {
+        continue; // Skip current thread if tab is active (it's already being processed in real-time)
+      }
+      
+      await syncThreadWithOpenAI(threadId);
+      const afterCount = (threads[threadId]?.chatHistory || []).length;
 
-        // If new messages were found, update the thread list and show notifications
-        if (afterCount > beforeCount) {
-          renderThreadList();
-          
-          // Show notification for new assistant messages
-          const thread = threads[threadId];
-          if (thread && thread.chatHistory) {
-            const newMessages = thread.chatHistory.slice(beforeCount);
-            for (const message of newMessages) {
-              if (message.sender === 'assistant') {
-                showNotification(thread.displayName, message.text, threadId);
-                break; // Only show one notification per thread per check
-              }
+      // If new messages were found, update the thread list and show notifications
+      if (afterCount > beforeCount) {
+        renderThreadList();
+        
+        // Show notification for new assistant messages (for any thread when tab is not active)
+        const thread = threads[threadId];
+        if (thread && thread.chatHistory) {
+          const newMessages = thread.chatHistory.slice(beforeCount);
+          for (const message of newMessages) {
+            if (message.sender === 'assistant') {
+              showNotification(thread.displayName, message.text, threadId);
+              break; // Only show one notification per thread per check
             }
           }
         }
