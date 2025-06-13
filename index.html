@@ -1804,6 +1804,16 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="setting-item">
+                        <div class="checkbox-setting">
+                            <input type="checkbox" id="notificationsCheckbox">
+                            <div class="checkbox-content">
+                                <label class="checkbox-label" for="notificationsCheckbox">Browser Notifications</label>
+                                <div class="checkbox-description">Show notifications for new messages when tab is not active.</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2129,9 +2139,85 @@
   let selectedSuggestionIndex = -1;
   let lastRequestedQuery = '';
 
+  // Notification variables
+  let notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false'; // Default to true
+  let isTabActive = true;
+
   // Initialize theme
   document.body.setAttribute('data-theme', currentTheme);
   updateThemeIcon();
+
+  // Request notification permission on load
+  async function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      try {
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission:', permission);
+      } catch (error) {
+        console.log('Notification permission request failed:', error);
+      }
+    }
+  }
+
+  // Track tab visibility
+  document.addEventListener('visibilitychange', () => {
+    isTabActive = !document.hidden;
+    if (isTabActive) {
+      // Clear any existing notifications when tab becomes active
+      clearNotifications();
+      // Update last read timestamp for current thread
+      if (currentThreadId) {
+        updateLastReadTimestamp(currentThreadId);
+        renderThreadList();
+      }
+    }
+  });
+
+  // Show notification for new message
+  function showNotification(threadName, messageText, threadId) {
+    if (!notificationsEnabled || isTabActive || Notification.permission !== 'granted') {
+      return;
+    }
+
+    // Truncate long messages
+    const truncatedText = messageText.length > 100 ? 
+      messageText.substring(0, 100) + '...' : 
+      messageText;
+
+    const notification = new Notification(`New message in ${threadName}`, {
+      body: truncatedText,
+      icon: 'favicon.ico',
+      tag: `thread-${threadId}`, // This replaces previous notifications for the same thread
+      requireInteraction: false,
+      silent: false
+    });
+
+    // Auto-close notification after 5 seconds
+    setTimeout(() => {
+      notification.close();
+    }, 5000);
+
+    // Click notification to focus the thread
+    notification.onclick = () => {
+      window.focus();
+      if (threadId !== currentThreadId) {
+        currentThreadId = threadId;
+        localStorage.setItem('currentThreadId', currentThreadId);
+        renderThreadList();
+        renderChat();
+      }
+      notification.close();
+    };
+  }
+
+  // Clear all notifications
+  function clearNotifications() {
+    // This is a best-effort approach since there's no direct way to clear all notifications
+    // The tag-based replacement in showNotification helps manage this
+  }
+
+  // Request permission when the app loads
+  requestNotificationPermission();
 
   function updateThemeIcon() {
     const sunIcon = document.querySelector('.sun-icon');
@@ -3464,23 +3550,32 @@
     document.getElementById('autoCompleteCheckbox').checked = autoCompleteEnabled;
     document.getElementById('renderMarkdownCheckbox').checked = renderMarkdown;
     document.getElementById('autoNamingCheckbox').checked = autoNaming;
+    document.getElementById('notificationsCheckbox').checked = notificationsEnabled;
     const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
     settingsModal.show();
   });
 
-  document.getElementById('saveSettings').addEventListener('click', () => {
+  document.getElementById('saveSettings').addEventListener('click', async () => {
     apiKey = document.getElementById('apiKeyInput').value.trim();
     assistantId = document.getElementById('assistantIdInput').value.trim();
     autoCompleteModel = document.getElementById('autoCompleteModelSelect').value;
     autoCompleteEnabled = document.getElementById('autoCompleteCheckbox').checked;
     renderMarkdown = document.getElementById('renderMarkdownCheckbox').checked;
     autoNaming = document.getElementById('autoNamingCheckbox').checked;
+    notificationsEnabled = document.getElementById('notificationsCheckbox').checked;
+    
+    // Request notification permission if notifications are being enabled
+    if (notificationsEnabled && Notification.permission === 'default') {
+      await requestNotificationPermission();
+    }
+    
     localStorage.setItem('apiKey', apiKey);
     localStorage.setItem('assistantId', assistantId);
     localStorage.setItem('autoCompleteModel', autoCompleteModel);
     localStorage.setItem('autoCompleteEnabled', autoCompleteEnabled ? 'true' : 'false');
     localStorage.setItem('renderMarkdown', renderMarkdown ? 'true' : 'false');
     localStorage.setItem('autoNaming', autoNaming ? 'true' : 'false');
+    localStorage.setItem('notificationsEnabled', notificationsEnabled ? 'true' : 'false');
     const settingsModal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
     settingsModal.hide();
   });
@@ -3516,9 +3611,21 @@
         await syncThreadWithOpenAI(threadId);
         const afterCount = (threads[threadId]?.chatHistory || []).length;
 
-        // If new messages were found, update the thread list to show unread badges
+        // If new messages were found, update the thread list and show notifications
         if (afterCount > beforeCount) {
           renderThreadList();
+          
+          // Show notification for new assistant messages
+          const thread = threads[threadId];
+          if (thread && thread.chatHistory) {
+            const newMessages = thread.chatHistory.slice(beforeCount);
+            for (const message of newMessages) {
+              if (message.sender === 'assistant') {
+                showNotification(thread.displayName, message.text, threadId);
+                break; // Only show one notification per thread per check
+              }
+            }
+          }
         }
       }
     }
