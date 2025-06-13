@@ -854,28 +854,62 @@
         }
 
         /* Typing Indicator */
+        .typing-indicator-container {
+            display: flex;
+            justify-content: flex-start;
+            margin: 20px 0;
+            opacity: 0.7;
+        }
+
         .typing-indicator {
             display: flex;
             align-items: center;
-            gap: 4px;
-            padding: 12px 16px;
-            background: var(--assistant-msg-bg);
-            border-radius: 16px;
-            border-bottom-left-radius: 4px;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(var(--text-secondary-rgb, 128, 128, 128), 0.1);
+            border: 1px solid rgba(var(--text-secondary-rgb, 128, 128, 128), 0.2);
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            font-style: italic;
             width: fit-content;
-            margin-bottom: 16px;
         }
 
-        .typing-indicator::after {
-            content: '';
-            animation: typingDots 1.4s infinite;
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+            align-items: center;
         }
 
-        @keyframes typingDots {
-            0%, 60%, 100% { content: ''; }
-            20% { content: '.'; }
-            40% { content: '..'; }
-            80% { content: '...'; }
+        .typing-dot {
+            width: 4px;
+            height: 4px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typingPulse 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingPulse {
+            0%, 60%, 100% {
+                opacity: 0.3;
+                transform: scale(0.8);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         /* Unread Divider */
@@ -3073,14 +3107,31 @@
 
   function addTypingIndicator() {
     const chat = document.getElementById('chat');
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'message assistant';
-    const typingContent = document.createElement('div');
-    typingContent.className = 'typing-indicator';
-    typingContent.textContent = 'Assistant is typing';
-    typingDiv.appendChild(typingContent);
-    chat.appendChild(typingDiv);
-    return typingDiv;
+    const typingContainer = document.createElement('div');
+    typingContainer.className = 'typing-indicator-container';
+    
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'typing-indicator';
+    
+    const typingText = document.createElement('span');
+    typingText.textContent = 'Assistant is typing';
+    
+    const typingDots = document.createElement('div');
+    typingDots.className = 'typing-dots';
+    
+    // Create three animated dots
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'typing-dot';
+      typingDots.appendChild(dot);
+    }
+    
+    typingIndicator.appendChild(typingText);
+    typingIndicator.appendChild(typingDots);
+    typingContainer.appendChild(typingIndicator);
+    chat.appendChild(typingContainer);
+    
+    return typingContainer;
   }
 
   document.getElementById('newThreadBtn').addEventListener('click', addNewThread);
