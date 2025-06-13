@@ -966,7 +966,11 @@
             justify-content: center;
         }
 
-        /* Modal Styling */
+        /* Settings Modal */
+        .modal-dialog {
+            max-width: 600px;
+        }
+
         .modal-content {
             border: none;
             border-radius: 12px;
@@ -978,23 +982,97 @@
         .modal-header {
             border-bottom: 1px solid var(--border-color);
             padding: 20px 24px;
+            background: var(--modal-bg);
         }
 
         .modal-title {
             font-weight: 600;
             font-size: 1.125rem;
             color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-title svg {
+            width: 20px;
+            height: 20px;
+            color: var(--primary-color);
         }
 
         .modal-body {
             padding: 24px;
         }
 
-        .form-label {
+        .settings-group {
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            position: relative;
+        }
+
+
+
+        .settings-group:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .group-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 20px 0 16px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            text-align: center;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-group:first-child .group-title {
+            margin-top: 0;
+        }
+
+        .group-title::before,
+        .group-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .group-title::before {
+            margin-right: 16px;
+        }
+
+        .group-title::after {
+            margin-left: 16px;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
             font-weight: 500;
             font-size: 0.875rem;
             color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .setting-description {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            line-height: 1.4;
         }
 
         .form-control {
@@ -1005,21 +1083,126 @@
             transition: all 0.2s;
             background: var(--input-bg);
             color: var(--text-primary);
+            width: 100%;
         }
 
         .form-control:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
             background: var(--main-bg);
+            outline: none;
         }
 
-        .form-check-label {
+        .form-control[type="password"] {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+        }
+
+        .checkbox-setting {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .checkbox-setting:hover {
+            background: var(--sidebar-hover);
+            border-color: var(--primary-color);
+        }
+
+        .checkbox-setting input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+            flex-shrink: 0;
+            align-self: center;
+        }
+
+        .checkbox-content {
+            flex: 1;
+        }
+
+        .checkbox-label {
+            font-weight: 500;
+            font-size: 0.875rem;
             color: var(--text-primary);
+            cursor: pointer;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .checkbox-description {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .form-control.select {
+            appearance: none;
+            background-image: none;
+            padding-right: 32px;
         }
 
         .modal-footer {
             border-top: 1px solid var(--border-color);
             padding: 16px 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--text-secondary);
+            color: var(--main-bg);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--hover-color);
         }
 
         .btn-close {
@@ -1433,52 +1616,90 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                <h5 class="modal-title" id="settingsModalLabel">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.205 1.251l-1.18 2.044a1 1 0 01-1.186.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.205-1.251l1.18-2.044a1 1 0 011.186-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                    Settings
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-4">
-                    <label for="apiKeyInput" class="form-label">OpenAI API Key</label>
-                    <input type="password" class="form-control" id="apiKeyInput" placeholder="sk-...">
+                <!-- API Configuration -->
+                <div class="settings-group">
+                    <div class="group-title">API Configuration</div>
+                    
+                    <div class="setting-item">
+                        <label for="apiKeyInput" class="setting-label">OpenAI API Key</label>
+                        <input type="password" class="form-control" id="apiKeyInput" placeholder="sk-proj-...">
+                        <div class="setting-description">Your OpenAI API key for accessing GPT models. Keep this secure.</div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="assistantIdInput" class="setting-label">Assistant ID</label>
+                        <input type="text" class="form-control" id="assistantIdInput" placeholder="asst_...">
+                        <div class="setting-description">The ID of your OpenAI Assistant that will handle conversations.</div>
+                    </div>
                 </div>
-                <div class="mb-4">
-                    <label for="assistantIdInput" class="form-label">Assistant ID</label>
-                    <input type="text" class="form-control" id="assistantIdInput" placeholder="asst_...">
+
+                <!-- AI Features -->
+                <div class="settings-group">
+                    <div class="group-title">AI Features</div>
+                    
+                    <div class="setting-item">
+                        <label for="autoCompleteModelSelect" class="setting-label">Auto-completion Model</label>
+                        <div class="select-wrapper">
+                            <select class="form-control select" id="autoCompleteModelSelect">
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fast & Cost-effective)</option>
+                                <option value="gpt-4o-mini">GPT-4o Mini (Fastest GPT-4)</option>
+                                <option value="gpt-4o">GPT-4o (Latest & Best)</option>
+                                <option value="gpt-4.1">GPT-4.1 (Advanced)</option>
+                                <option value="gpt-4.1-mini">GPT-4.1 Mini (Efficient)</option>
+                                <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra-fast)</option>
+                            </select>
+                        </div>
+                        <div class="setting-description">Choose the AI model for message auto-completion.</div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="checkbox-setting">
+                            <input type="checkbox" id="autoCompleteCheckbox">
+                            <div class="checkbox-content">
+                                <label class="checkbox-label" for="autoCompleteCheckbox">Enable Auto-completion</label>
+                                <div class="checkbox-description">Get AI suggestions as you type. Press Tab or → to accept.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="checkbox-setting">
+                            <input type="checkbox" id="autoNamingCheckbox">
+                            <div class="checkbox-content">
+                                <label class="checkbox-label" for="autoNamingCheckbox">Auto-generate Thread Names</label>
+                                <div class="checkbox-description">Automatically create descriptive names for conversations.</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-4">
-                    <label for="autoCompleteModelSelect" class="form-label">Auto-completion Model</label>
-                    <select class="form-control" id="autoCompleteModelSelect">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fast & Cost-effective)</option>
-                        <option value="gpt-4o-mini">GPT-4o Mini (Fastest GPT-4)</option>
-                        <option value="gpt-4o">GPT-4o (Latest & Best)</option>
-                        <option value="gpt-4.1">GPT-4.1 (Advanced)</option>
-                        <option value="gpt-4.1-mini">GPT-4.1 Mini (Efficient)</option>
-                        <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra-fast)</option>
-                    </select>
-                    <div class="form-text">Model used for auto-completing your messages</div>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" value="" id="renderMarkdownCheckbox">
-                    <label class="form-check-label" for="renderMarkdownCheckbox">
-                        Render assistant messages as Markdown
-                    </label>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" value="" id="autoCompleteCheckbox">
-                    <label class="form-check-label" for="autoCompleteCheckbox">
-                        Enable auto-completion suggestions
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="autoNamingCheckbox">
-                    <label class="form-check-label" for="autoNamingCheckbox">
-                        Auto-generate thread names (uses GPT-4o-mini)
-                    </label>
+
+                <!-- Display Preferences -->
+                <div class="settings-group">
+                    <div class="group-title">Display Preferences</div>
+                    
+                    <div class="setting-item">
+                        <div class="checkbox-setting">
+                            <input type="checkbox" id="renderMarkdownCheckbox">
+                            <div class="checkbox-content">
+                                <label class="checkbox-label" for="renderMarkdownCheckbox">Render Markdown</label>
+                                <div class="checkbox-description">Display messages with rich formatting (bold, italic, code blocks, etc.).</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="saveSettings" class="btn btn-primary">Save changes</button>
+                <button type="button" id="saveSettings" class="btn btn-primary">Save Changes</button>
             </div>
         </div>
     </div>
@@ -3103,6 +3324,29 @@
     localStorage.setItem('autoNaming', autoNaming ? 'true' : 'false');
     const settingsModal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
     settingsModal.hide();
+  });
+
+  // Make entire checkbox setting elements clickable
+  document.querySelectorAll('.checkbox-setting').forEach(checkboxSetting => {
+    checkboxSetting.addEventListener('click', (e) => {
+      // Don't trigger if the actual checkbox was clicked (to avoid double toggle)
+      if (e.target.type === 'checkbox') {
+        return;
+      }
+      
+      // Don't trigger if a label was clicked (let the label handle it naturally)
+      if (e.target.tagName === 'LABEL') {
+        return;
+      }
+      
+      // Find the checkbox within this setting
+      const checkbox = checkboxSetting.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        // Trigger change event to ensure any listeners are notified
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
   });
 
   // Periodically check for new messages in background threads
