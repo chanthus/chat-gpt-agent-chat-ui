@@ -733,8 +733,71 @@
             position: relative;
         }
 
-        #input {
+        /* Inline completion styles */
+        .input-wrapper {
+            position: relative;
             flex: 1;
+        }
+
+        #input-ghost {
+            position: absolute;
+            top: 1px;
+            left: 16px;
+            height: calc(100% - 2px);
+            font-size: 0.9375rem;
+            font-family: inherit;
+            color: transparent;
+            background: transparent;
+            pointer-events: none;
+            white-space: nowrap;
+            overflow: hidden;
+            z-index: 3;
+            line-height: 1.5;
+            padding: 12px 0;
+            margin: 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .ghost-prefix {
+            color: transparent;
+            visibility: hidden;
+        }
+
+        .ghost-text {
+            color: var(--text-secondary);
+            opacity: 0.8;
+            background: rgba(0, 102, 255, 0.1);
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+
+        .completion-hint {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--input-bg);
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .input-wrapper:hover .completion-hint,
+        .input-wrapper.has-completion .completion-hint {
+            opacity: 1;
+        }
+
+        #input {
+            width: 100%;
             padding: 12px 16px;
             border: 1px solid var(--border-color);
             border-radius: 24px;
@@ -743,6 +806,8 @@
             transition: all 0.2s;
             background: var(--input-bg);
             color: var(--text-primary);
+            position: relative;
+            z-index: 2;
         }
 
         #input:focus {
@@ -982,8 +1047,8 @@
         .autocomplete-suggestions {
             position: absolute;
             bottom: 100%;
-            left: 16px;
-            right: 16px;
+            left: 0;
+            right: 0;
             background: var(--modal-bg);
             border: 1px solid var(--border-color);
             border-radius: 16px;
@@ -1244,8 +1309,12 @@
         </div>
         <div id="chat"></div>
         <div id="input-container">
-            <div id="autocompleteSuggestions" class="autocomplete-suggestions"></div>
-            <input type="text" id="input" placeholder="Message Assistant..." />
+            <div class="input-wrapper">
+                <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
+                <div id="input-ghost"></div>
+                <input type="text" id="input" placeholder="Message Assistant..." />
+                <div class="completion-hint">Tab to complete</div>
+            </div>
             <button id="send"><span class="send-button-content">Send</span></button>
         </div>
     </div>
@@ -1614,9 +1683,9 @@
 
   // Auto-completion variables
   let autoCompleteTimeout = null;
-  let currentSuggestions = [];
-  let selectedSuggestionIndex = -1;
+  let currentCompletion = '';
   let isAutoCompleteActive = false;
+  let selectedSuggestionIndex = -1;
 
   // Initialize theme
   document.body.setAttribute('data-theme', currentTheme);
@@ -2476,112 +2545,167 @@
     return text.replace(regex, '<strong>$1</strong>');
   }
 
+  function measureTextWidth(text, element) {
+    // Create a canvas to measure text width precisely
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const styles = window.getComputedStyle(element);
+    
+    // Set font properties to match the input element
+    context.font = `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
+    
+    // Measure the text width
+    const metrics = context.measureText(text);
+    return metrics.width;
+  }
+
   function showAutoCompleteSuggestions(suggestions, query) {
-    const container = document.getElementById('autocompleteSuggestions');
-    console.log('Showing suggestions:', suggestions, 'for query:', query);
+    console.log('Showing auto-complete suggestions:', suggestions, 'for query:', query);
     
     if (suggestions.length === 0) {
       console.log('No suggestions to show, hiding');
-      hideAutoCompleteSuggestions();
+      hideAutoComplete();
       return;
     }
 
-    currentSuggestions = suggestions;
-    selectedSuggestionIndex = -1;
+    // Show inline completion with first suggestion
+    showInlineCompletion(suggestions[0], query);
+    
+    // Show dropdown with all suggestions
+    showDropdownSuggestions(suggestions, query);
+  }
 
-    const headerHTML = `
-      <div class="suggestions-header">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M9.664 1.319a.75.75 0 01.672 0 41.059 41.059 0 018.198 5.424.75.75 0 01-.254 1.285 31.372 31.372 0 00-7.86 3.83.75.75 0 01-.84 0 31.508 31.508 0 00-2.08-1.287V9.394c0-.244.116-.463.302-.592a35.504 35.504 0 013.305-2.033.75.75 0 00-.714-1.319 37 37 0 00-3.446 2.12A2.216 2.216 0 006 9.393v.38a31.293 31.293 0 00-4.28-1.746.75.75 0 01-.254-1.285 41.059 41.059 0 018.198-5.424zM6 11.459a29.848 29.848 0 00-2.455-1.158 41.029 41.029 0 00-.39 3.114.75.75 0 00.419.74c.528.256 1.046.53 1.554.82-.21-.899-.455-1.746-.721-2.517zm.286 1.961a.75.75 0 01.848.06 28.424 28.424 0 002.729 1.554 28.424 28.424 0 002.729-1.554.75.75 0 01.848-.06c.26.156.519.312.776.472-.526 1.798-1.297 3.486-2.209 4.615a.75.75 0 01-1.238 0c-.912-1.129-1.683-2.817-2.209-4.615.257-.16.516-.316.776-.472z" clip-rule="evenodd" />
-        </svg>
-        AI Suggestions
-      </div>
-    `;
+  function showInlineCompletion(bestSuggestion, query) {
+    const completion = bestSuggestion.substring(query.length);
+    
+    console.log('Best suggestion:', bestSuggestion);
+    console.log('Completion part:', completion);
+    
+    currentCompletion = bestSuggestion;
+    isAutoCompleteActive = true;
 
-    const suggestionsHTML = suggestions.map((suggestion, index) => {
-      const completion = suggestion.substring(query.length);
-      const shortcutKey = index < 9 ? `${index + 1}` : '';
+    // Update the ghost text with proper positioning
+    const ghostElement = document.getElementById('input-ghost');
+    const inputWrapper = document.querySelector('.input-wrapper');
+    const input = document.getElementById('input');
+    
+    if (ghostElement && inputWrapper && input) {
+      // Measure the text width using canvas for precision
+      const textWidth = measureTextWidth(query, input);
       
+      // Position the ghost text after the typed text, accounting for input padding (16px)
+      ghostElement.style.left = `${16 + textWidth}px`;
+      ghostElement.innerHTML = `<span class="ghost-text">${completion}</span>`;
+      inputWrapper.classList.add('has-completion');
+      
+      console.log('Ghost text positioned at:', 16 + textWidth, 'px', 'text width:', textWidth);
+    } else {
+      console.error('Ghost element, input wrapper, or input not found');
+    }
+  }
+
+  function showDropdownSuggestions(suggestions, query) {
+    const container = document.getElementById('autocompleteSuggestions');
+    selectedSuggestionIndex = -1; // Reset selection
+    
+    const suggestionsHtml = suggestions.map((suggestion, index) => {
+      const completion = suggestion.substring(query.length);
       return `
-        <div class="suggestion-item" data-index="${index}">
+        <div class="suggestion-item" data-index="${index}" data-suggestion="${suggestion}">
           <div class="suggestion-content">
             <div class="suggestion-text">
               <span class="suggestion-prefix">${query}</span><span class="suggestion-completion">${completion}</span>
             </div>
             <div class="suggestion-meta">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M2 10a8 8 0 1116 0 8 8 0 01-16 0zm6.39-2.908a.75.75 0 01.766.027l3.5 2.25a.75.75 0 010 1.262l-3.5 2.25A.75.75 0 018 12.25v-4.5a.75.75 0 01.39-.658z" clip-rule="evenodd" />
+                <path fill-rule="evenodd" d="M9.664 1.319a.75.75 0 01.672 0 41.059 41.059 0 018.198 5.424.75.75 0 01-.254 1.285 31.372 31.372 0 00-7.86 3.83.75.75 0 01-.84 0 31.508 31.508 0 00-2.08-1.287V9.394c0-.244.116-.463.302-.592a35.504 35.504 0 013.305-2.033.75.75 0 00-.714-1.319 37 37 0 00-3.446 2.12A2.216 2.216 0 006 9.393v.38a31.293 31.293 0 00-4.28-1.746.75.75 0 01-.254-1.285 41.059 41.059 0 018.198-5.424zM6 11.459a29.848 29.848 0 00-2.455-1.158 41.029 41.029 0 00-.39 3.114.75.75 0 00.419.74c.528.256 1.046.53 1.554.82-.21-.899-.455-1.746-.721-2.517zm.286 1.961a.75.75 0 01.848.06 28.424 28.424 0 002.729 1.554 28.424 28.424 0 002.729-1.554.75.75 0 01.848-.06c.26.156.519.312.776.472-.526 1.798-1.297 3.486-2.209 4.615a.75.75 0 01-1.238 0c-.912-1.129-1.683-2.817-2.209-4.615.257-.16.516-.316.776-.472z" clip-rule="evenodd" />
               </svg>
-              Press Tab or Enter to complete
+              AI suggestion ${index + 1}
             </div>
           </div>
-          ${shortcutKey ? `<div class="suggestion-shortcut">${shortcutKey}</div>` : ''}
+          <div class="suggestion-shortcut">${index === 0 ? 'Tab' : `${index + 1}`}</div>
         </div>
       `;
     }).join('');
 
     container.innerHTML = `
-      ${headerHTML}
+      <div class="suggestions-header">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9.664 1.319a.75.75 0 01.672 0 41.059 41.059 0 018.198 5.424.75.75 0 01-.254 1.285 31.372 31.372 0 00-7.86 3.83.75.75 0 01-.84 0 31.508 31.508 0 00-2.08-1.287V9.394c0-.244.116-.463.302-.592a35.504 35.504 0 013.305-2.033.75.75 0 00-.714-1.319 37 37 0 00-3.446 2.12A2.216 2.216 0 006 9.393v.38a31.293 31.293 0 00-4.28-1.746.75.75 0 01-.254-1.285 41.059 41.059 0 018.198-5.424zM6 11.459a29.848 29.848 0 00-2.455-1.158 41.029 41.029 0 00-.39 3.114.75.75 0 00.419.74c.528.256 1.046.53 1.554.82-.21-.899-.455-1.746-.721-2.517zm.286 1.961a.75.75 0 01.848.06 28.424 28.424 0 002.729 1.554 28.424 28.424 0 002.729-1.554.75.75 0 01.848-.06c.26.156.519.312.776.472-.526 1.798-1.297 3.486-2.209 4.615a.75.75 0 01-1.238 0c-.912-1.129-1.683-2.817-2.209-4.615.257-.16.516-.316.776-.472z" clip-rule="evenodd" />
+        </svg>
+        AI Suggestions
+      </div>
       <div class="suggestions-list">
-        ${suggestionsHTML}
+        ${suggestionsHtml}
       </div>
     `;
-
+    
     container.classList.add('active');
-    isAutoCompleteActive = true;
-
+    
     // Add click handlers
     container.querySelectorAll('.suggestion-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const index = parseInt(item.dataset.index);
-        selectAutoCompleteSuggestion(index);
-      });
+      item.onclick = () => {
+        const suggestion = item.getAttribute('data-suggestion');
+        acceptSuggestion(suggestion);
+      };
     });
   }
 
-  function hideAutoCompleteSuggestions() {
-    const container = document.getElementById('autocompleteSuggestions');
-    container.classList.remove('active');
-    isAutoCompleteActive = false;
-    selectedSuggestionIndex = -1;
-    currentSuggestions = [];
+  function hideAutoComplete() {
+    hideInlineCompletion();
+    hideDropdownSuggestions();
   }
 
-  function selectAutoCompleteSuggestion(index) {
-    if (index >= 0 && index < currentSuggestions.length) {
-      const input = document.getElementById('input');
-      input.value = currentSuggestions[index];
-      hideAutoCompleteSuggestions();
-      input.focus();
-      // Move cursor to end
-      input.setSelectionRange(input.value.length, input.value.length);
+  function hideInlineCompletion() {
+    const ghostElement = document.getElementById('input-ghost');
+    const inputWrapper = document.querySelector('.input-wrapper');
+    
+    if (ghostElement) {
+      ghostElement.innerHTML = '';
+      ghostElement.style.left = '16px'; // Reset position
+    }
+    if (inputWrapper) {
+      inputWrapper.classList.remove('has-completion');
+    }
+    isAutoCompleteActive = false;
+    currentCompletion = '';
+  }
+
+  function hideDropdownSuggestions() {
+    const container = document.getElementById('autocompleteSuggestions');
+    container.classList.remove('active');
+    container.innerHTML = '';
+    selectedSuggestionIndex = -1;
+  }
+
+  function acceptInlineCompletion() {
+    if (currentCompletion) {
+      acceptSuggestion(currentCompletion);
     }
   }
 
-  function updateAutoCompleteSelection() {
+  function acceptSuggestion(suggestion) {
+    const input = document.getElementById('input');
+    input.value = suggestion;
+    hideAutoComplete();
+    input.focus();
+    // Move cursor to end
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
+  function updateSuggestionSelection() {
     const items = document.querySelectorAll('.suggestion-item');
     items.forEach((item, index) => {
       if (index === selectedSuggestionIndex) {
         item.classList.add('selected');
-        // Scroll within the suggestions list, not the whole container
-        const suggestionsList = document.querySelector('.suggestions-list');
-        if (suggestionsList) {
-          const itemTop = item.offsetTop;
-          const itemHeight = item.offsetHeight;
-          const listScrollTop = suggestionsList.scrollTop;
-          const listHeight = suggestionsList.offsetHeight;
-          
-          if (itemTop < listScrollTop) {
-            suggestionsList.scrollTop = itemTop;
-          } else if (itemTop + itemHeight > listScrollTop + listHeight) {
-            suggestionsList.scrollTop = itemTop + itemHeight - listHeight;
-          }
-        }
+        item.scrollIntoView({ block: 'nearest' });
       } else {
         item.classList.remove('selected');
       }
     });
   }
+
+
 
   function showAutoCompleteLoading() {
     const container = document.getElementById('autocompleteSuggestions');
@@ -2607,20 +2731,18 @@
     // Clear existing timeout
     clearTimeout(autoCompleteTimeout);
     
+    // Always hide existing completion first to prevent overlap
+    hideAutoComplete();
+    
     // Check if auto-completion is enabled
     if (!autoCompleteEnabled) {
-      hideAutoCompleteSuggestions();
       return;
     }
     
     // Hide suggestions if input is too short
     if (value.length < 5) {
-      hideAutoCompleteSuggestions();
       return;
     }
-
-    // Show loading state
-    showAutoCompleteLoading();
 
     // Debounce API calls
     autoCompleteTimeout = setTimeout(async () => {
@@ -2630,7 +2752,7 @@
         showAutoCompleteSuggestions(suggestions, value);
       } catch (error) {
         console.error('Auto-completion failed:', error);
-        hideAutoCompleteSuggestions();
+        hideAutoComplete();
       }
     }, 500); // 500ms debounce
   });
@@ -2640,30 +2762,78 @@
       return;
     }
 
+    const container = document.getElementById('autocompleteSuggestions');
+    const isDropdownActive = container.classList.contains('active');
+    const items = container.querySelectorAll('.suggestion-item');
+
     switch (e.key) {
-      case 'ArrowDown':
+      case 'Tab':
         e.preventDefault();
-        selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, currentSuggestions.length - 1);
-        updateAutoCompleteSelection();
+        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < items.length) {
+          const suggestion = items[selectedSuggestionIndex].getAttribute('data-suggestion');
+          acceptSuggestion(suggestion);
+        } else {
+          acceptInlineCompletion();
+        }
+        break;
+      
+      case 'ArrowDown':
+        if (isDropdownActive && items.length > 0) {
+          e.preventDefault();
+          selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
+          updateSuggestionSelection();
+        }
         break;
       
       case 'ArrowUp':
-        e.preventDefault();
-        selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-        updateAutoCompleteSelection();
+        if (isDropdownActive && items.length > 0) {
+          e.preventDefault();
+          selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+          updateSuggestionSelection();
+        }
         break;
       
-      case 'Tab':
       case 'Enter':
-        if (selectedSuggestionIndex >= 0) {
+        if (isDropdownActive && selectedSuggestionIndex >= 0 && selectedSuggestionIndex < items.length) {
           e.preventDefault();
-          selectAutoCompleteSuggestion(selectedSuggestionIndex);
+          const suggestion = items[selectedSuggestionIndex].getAttribute('data-suggestion');
+          acceptSuggestion(suggestion);
+        }
+        break;
+      
+      case 'ArrowRight':
+        // Accept completion with right arrow if cursor is at end
+        const input = e.target;
+        if (input.selectionStart === input.value.length) {
+          e.preventDefault();
+          if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < items.length) {
+            const suggestion = items[selectedSuggestionIndex].getAttribute('data-suggestion');
+            acceptSuggestion(suggestion);
+          } else {
+            acceptInlineCompletion();
+          }
         }
         break;
       
       case 'Escape':
         e.preventDefault();
-        hideAutoCompleteSuggestions();
+        hideAutoComplete();
+        break;
+      
+      // Number keys 1-9 for quick selection
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+        if (isDropdownActive && e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const index = parseInt(e.key) - 1;
+          if (index < items.length) {
+            const suggestion = items[index].getAttribute('data-suggestion');
+            acceptSuggestion(suggestion);
+          }
+        }
         break;
     }
   });
@@ -2671,7 +2841,7 @@
   document.getElementById('input').addEventListener('keypress', async (e) => {
     if (e.key === 'Enter' && !document.getElementById('send').disabled) {
       // Hide auto-complete before sending
-      hideAutoCompleteSuggestions();
+      hideAutoComplete();
       document.getElementById('send').click();
     }
   });
@@ -2680,7 +2850,7 @@
   document.addEventListener('click', (e) => {
     const inputContainer = document.getElementById('input-container');
     if (!inputContainer.contains(e.target)) {
-      hideAutoCompleteSuggestions();
+      hideAutoComplete();
     }
   });
 
@@ -2753,6 +2923,22 @@
   initializeSidebarResize();
   renderThreadList();
   renderChat();
+
+  // Debug: Check if inline completion elements exist
+  setTimeout(() => {
+    const ghostElement = document.getElementById('input-ghost');
+    const inputWrapper = document.querySelector('.input-wrapper');
+    const input = document.getElementById('input');
+    
+    console.log('=== Inline Completion Debug ===');
+    console.log('Ghost element exists:', !!ghostElement);
+    console.log('Input wrapper exists:', !!inputWrapper);
+    console.log('Input element exists:', !!input);
+    
+    if (ghostElement) {
+      console.log('Ghost element styles:', window.getComputedStyle(ghostElement));
+    }
+  }, 1000);
 
   // Focus input box if there's a current thread and API is configured
   if (currentThreadId && threads[currentThreadId] && apiKey && assistantId) {
