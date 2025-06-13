@@ -2149,6 +2149,12 @@
 
   // Request notification permission on load
   async function requestNotificationPermission() {
+    // Don't request notifications for local file URLs
+    if (window.location.protocol === 'file:') {
+      console.log('Notifications not supported for local file URLs');
+      return;
+    }
+    
     if ('Notification' in window && Notification.permission === 'default') {
       try {
         const permission = await Notification.requestPermission();
@@ -2175,6 +2181,11 @@
 
   // Show notification for new message
   function showNotification(threadName, messageText, threadId) {
+    // Don't show notifications for local file URLs
+    if (window.location.protocol === 'file:') {
+      return;
+    }
+    
     if (!notificationsEnabled || isTabActive || Notification.permission !== 'granted') {
       return;
     }
@@ -3564,8 +3575,8 @@
     autoNaming = document.getElementById('autoNamingCheckbox').checked;
     notificationsEnabled = document.getElementById('notificationsCheckbox').checked;
     
-    // Request notification permission if notifications are being enabled
-    if (notificationsEnabled && Notification.permission === 'default') {
+    // Request notification permission if notifications are being enabled (but not for local files)
+    if (notificationsEnabled && Notification.permission === 'default' && window.location.protocol !== 'file:') {
       await requestNotificationPermission();
     }
     
