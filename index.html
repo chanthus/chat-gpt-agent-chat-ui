@@ -461,6 +461,38 @@
             text-align: center;
         }
 
+        /* Awaiting response indicator */
+        .awaiting-response {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            margin-left: 8px;
+            flex-shrink: 0;
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+        }
+
+        .thread-item.active .awaiting-response {
+            background: var(--primary-color);
+            opacity: 0.8;
+        }
+
         /* Main Area */
         .main-area {
             flex: 1;
@@ -1864,6 +1896,15 @@
     }).length;
   }
 
+  function isAwaitingResponse(threadId) {
+    const thread = threads[threadId];
+    if (!thread || !thread.chatHistory || thread.chatHistory.length === 0) return false;
+    
+    // Check if the last message was from the user
+    const lastMessage = thread.chatHistory[thread.chatHistory.length - 1];
+    return lastMessage.sender === 'user';
+  }
+
   // Auto-naming function using GPT-4o-mini
   async function generateThreadName(firstMessage, threadId) {
     if (!autoNaming || !apiKey || !threadId || !threads[threadId]) return null;
@@ -2184,6 +2225,10 @@
       const unreadCount = getUnreadCount(id);
       const unreadBadge = unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : '';
       
+      // Check if thread is awaiting response (only show if no unread messages)
+      const awaitingResponse = unreadCount === 0 && isAwaitingResponse(id);
+      const awaitingIndicator = awaitingResponse ? `<div class="awaiting-response" title="Awaiting response"></div>` : '';
+      
       // Check if thread name is being generated
       const isGenerating = t.displayName.startsWith('Thread ') && t.generatingName;
       const nameClass = isGenerating ? 'thread-name generating' : 'thread-name';
@@ -2192,6 +2237,7 @@
       threadItem.innerHTML = `
         <span class="${nameClass}" data-thread-id="${id}">${displayName}</span>
         ${unreadBadge}
+        ${awaitingIndicator}
         <div class="thread-actions">
           <button class="thread-btn edit-btn" title="Rename">${icons.edit}</button>
           <button class="thread-btn delete-btn" title="Delete">${icons.trash}</button>
