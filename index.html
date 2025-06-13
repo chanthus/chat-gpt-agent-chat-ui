@@ -1783,7 +1783,7 @@
   let assistantId = localStorage.getItem('assistantId') || '';
   let renderMarkdown = localStorage.getItem('renderMarkdown') !== 'false'; // Default to true
   let autoNaming = localStorage.getItem('autoNaming') !== 'false'; // Default to true
-  let autoCompleteEnabled = localStorage.getItem('autoCompleteEnabled') === 'true'; // Default to false
+  let autoCompleteEnabled = localStorage.getItem('autoCompleteEnabled') !== 'false'; // Default to true
   let autoCompleteModel = localStorage.getItem('autoCompleteModel') || 'gpt-3.5-turbo'; // Default to GPT-3.5-turbo
   let currentTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
   let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
